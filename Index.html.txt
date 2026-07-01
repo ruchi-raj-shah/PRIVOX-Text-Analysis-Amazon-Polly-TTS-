@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Privox – Text Analysis + Amazon Polly TTS</title>
+ 
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #000814, #001d3d);
+        color: #e0e6ed;
+        overflow-x: hidden;
+    }
+ 
+    /* Animated floating circles */
+    .bg-animation {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: -1;
+    }
+ 
+    .circle {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(0, 119, 255, 0.15);
+        animation: float 12s infinite ease-in-out;
+    }
+ 
+    @keyframes float {
+        0% { transform: translateY(0) scale(1); opacity: 0.4; }
+        50% { transform: translateY(-80px) scale(1.3); opacity: 0.7; }
+        100% { transform: translateY(0) scale(1); opacity: 0.4; }
+    }
+ 
+    h1 {
+        text-align: center;
+        margin-top: 40px;
+        font-size: 42px;
+        color: #4da3ff;
+        letter-spacing: 2px;
+    }
+ 
+    .container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 25px;
+        border-radius: 10px;
+        backdrop-filter: blur(6px);
+    }
+ 
+    textarea {
+        width: 100%;
+        height: 150px;
+        background: #001a33;
+        color: #e0e6ed;
+        border: 1px solid #003566;
+        padding: 10px;
+        border-radius: 5px;
+    }
+ 
+    button {
+        background: #0077ff;
+        color: white;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 15px;
+        font-size: 16px;
+    }
+ 
+    button:hover {
+        background: #3399ff;
+    }
+ 
+    select {
+        padding: 10px;
+        background: #001a33;
+        color: #e0e6ed;
+        border: 1px solid #003566;
+        border-radius: 5px;
+    }
+ 
+    #result {
+        margin-top: 20px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 5px;
+    }
+ 
+    audio {
+        width: 100%;
+        margin-top: 10px;
+    }
+</style>
+</head>
+ 
+<body>
+ 
+<!-- Background animation -->
+<div class="bg-animation">
+<div class="circle" style="width:120px;height:120px;top:20%;left:10%;animation-duration:14s;"></div>
+<div class="circle" style="width:80px;height:80px;top:60%;left:70%;animation-duration:10s;"></div>
+<div class="circle" style="width:150px;height:150px;top:40%;left:40%;animation-duration:18s;"></div>
+</div>
+ 
+<h1>PRIVOX</h1>
+ 
+<div class="container">
+<h2>Text Analysis + Amazon Polly TTS</h2>
+ 
+    <textarea id="textInput" placeholder="Enter text..."></textarea><br><br>
+ 
+    <label>Voice: </label>
+<select id="voiceSelect">
+<option value="Joanna">Female</option>
+<option value="Matthew">Male</option>
+</select>
+ 
+    <button onclick="analyzeText()">Analyze & Speak</button>
+ 
+    <div id="result"></div>
+</div>
+ 
+<script>
+async function analyzeText() {
+    const text = document.getElementById('textInput').value;
+    if (!text) {
+        alert('Enter text');
+        return;
+    }
+ 
+    document.getElementById('result').innerHTML = 'Analyzing...';
+    const voice = document.getElementById('voiceSelect').value;
+ 
+    try {
+        const res = await fetch('/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, voice })
+        });
+ 
+        const data = await res.json();
+        displayResult(data);
+ 
+    } catch (e) {
+        document.getElementById('result').innerHTML = `Error: ${e}`;
+    }
+}
+ 
+function displayResult(data) {
+    let h = '<h3>Results</h3>';
+ 
+    if (data.error) {
+        h += `<p style="color:red;">${data.error}</p>`;
+    } else {
+        h += `
+<p><b>Sentiment:</b> ${data.sentiment}</p>
+<p><b>PII:</b> ${data.pii?.length ? data.pii.map(p => p.type).join(', ') : 'None'}</p>
+<p><b>Keywords:</b> ${data.keywords?.join(', ') || 'None'}</p>
+<p><b>Redacted:</b> ${data.redacted}</p>
+        `;
+ 
+        if (data.audio_b64) {
+            const b = base64ToBlob(data.audio_b64, 'audio/mp3');
+            h += `<p><b>Audio (${data.voice}):</b><br><audio controls src="${URL.createObjectURL(b)}"></audio>`;
+        } else if (data.audio_error) {
+            h += `<p>Audio Error: ${data.audio_error}</p>`;
+        }
+    }
+ 
+    document.getElementById('result').innerHTML = h;
+}
+ 
+function base64ToBlob(b64, type) {
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type });
+}
+</script>
+ 
+</body>
+</html>
